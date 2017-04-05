@@ -26,7 +26,8 @@ public class KafkaStatsDReporterTest {
     registry = new StatsDMetricsRegistry();
     reporter = new KafkaStatsDReporter(
         statsD,
-        registry
+        registry,
+        true
     );
   }
 

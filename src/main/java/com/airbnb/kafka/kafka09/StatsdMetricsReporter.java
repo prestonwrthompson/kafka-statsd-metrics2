@@ -47,6 +47,7 @@ public class StatsdMetricsReporter implements MetricsReporter {
   public static final String STATSD_METRICS_PREFIX = "external.kafka.statsd.metrics.prefix";
   public static final String POLLING_INTERVAL_SECS = "kafka.metrics.polling.interval.secs";
   public static final String STATSD_DIMENSION_ENABLED = "external.kafka.statsd.dimension.enabled";
+  public static final String STATSD_TAG_ENABLED = "external.kafka.statsd.tag.enabled";
 
   private static final String METRIC_PREFIX = "kafka.";
   private static final int POLLING_PERIOD_IN_SECONDS = 10;
@@ -58,6 +59,7 @@ public class StatsdMetricsReporter implements MetricsReporter {
   private String prefix;
   private long pollingPeriodInSeconds;
   private EnumSet<Dimension> metricDimensions;
+  private boolean isTagEnabled;
   private StatsDClient statsd;
   private Map<String, KafkaMetric> kafkaMetrics;
   private StatsDMetricsRegistry registry;
@@ -132,6 +134,8 @@ public class StatsdMetricsReporter implements MetricsReporter {
     pollingPeriodInSeconds = configs.containsKey(POLLING_INTERVAL_SECS) ?
       Integer.valueOf((String) configs.get(POLLING_INTERVAL_SECS)) : 10;
     metricDimensions = Dimension.fromConfigs(configs, STATSD_DIMENSION_ENABLED);
+    isTagEnabled = configs.containsKey(STATSD_TAG_ENABLED) ?
+      Boolean.valueOf((String) configs.get(STATSD_TAG_ENABLED)) : true;
   }
 
   public void startReporter(long pollingPeriodInSeconds) {
@@ -144,7 +148,7 @@ public class StatsdMetricsReporter implements MetricsReporter {
         log.warn("KafkaStatsDReporter: {} is already running", REPORTER_NAME);
       } else {
         statsd = createStatsd();
-        underlying = new KafkaStatsDReporter(statsd, registry);
+        underlying = new KafkaStatsDReporter(statsd, registry, isTagEnabled);
         underlying.start(pollingPeriodInSeconds, TimeUnit.SECONDS);
         log.info(
           "Started KafkaStatsDReporter: {} with host={}, port={}, polling_period_secs={}, prefix={}",

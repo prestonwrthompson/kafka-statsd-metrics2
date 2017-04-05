@@ -15,14 +15,17 @@ public class KafkaStatsDReporter implements Runnable {
 
   private final StatsDClient statsDClient;
   private final StatsDMetricsRegistry registry;
+  private boolean tagEnabled;
 
   public KafkaStatsDReporter(
     StatsDClient statsDClient,
-    StatsDMetricsRegistry registry
+    StatsDMetricsRegistry registry,
+    boolean tagEnabled
   ) {
     this.statsDClient = statsDClient;
     this.registry = registry;
     this.executor = new ScheduledThreadPoolExecutor(1);
+    this.tagEnabled = tagEnabled;
   }
 
   public void start(
@@ -55,7 +58,7 @@ public class KafkaStatsDReporter implements Runnable {
       val = 0D;
     }
 
-    if (tag != null) {
+    if (tagEnabled && tag != null) {
       statsDClient.gauge(metricName, val, tag);
     } else {
       statsDClient.gauge(metricName, val);
