@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 /**
  *
  */
-public class ExcludeMetricPredicate implements MetricPredicate {
+public class ExcludeMetricPredicate implements SharedMetricPredicate {
   private final Logger logger = Logger.getLogger(getClass());
 
   final String excludeRegex;
@@ -40,10 +40,18 @@ public class ExcludeMetricPredicate implements MetricPredicate {
   @Override
   public boolean matches(MetricName name, Metric metric) {
     String n = MetricNameFormatter.format(name);
-    boolean excluded = pattern.matcher(n).matches();
+    return matches(n);
+  }
+
+  public boolean matches(String name, org.apache.kafka.common.Metric metric) {
+    return matches(name);
+  }
+
+  public boolean matches(String name) {
+    boolean excluded = pattern.matcher(name).matches();
     if (excluded) {
       if (logger.isTraceEnabled()) {
-        logger.trace("Metric " + n + " is excluded");
+        logger.trace("Metric " + name + " is excluded");
       }
     }
     return !excluded;

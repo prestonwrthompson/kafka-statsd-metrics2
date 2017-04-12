@@ -16,6 +16,7 @@
 
 package com.airbnb.kafka.kafka08;
 
+import com.airbnb.metrics.StatsDReporterConfig;
 import kafka.utils.VerifiableProperties;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,13 +34,15 @@ public class StatsdMetricsReporterTest {
   public void init() {
     properties = createMock(VerifiableProperties.class);
     expect(properties.props()).andReturn(new Properties());
-    expect(properties.getInt("kafka.metrics.polling.interval.secs", 10)).andReturn(11);
-    expect(properties.getString("external.kafka.statsd.host", "localhost")).andReturn("127.0.0.1");
-    expect(properties.getInt("external.kafka.statsd.port", 8125)).andReturn(1234);
-    expect(properties.getString("external.kafka.statsd.metrics.prefix", "")).andReturn("foo");
-    expect(properties.getString("external.kafka.statsd.metrics.exclude_regex",
-        StatsdMetricsReporter.DEFAULT_EXCLUDE_REGEX)).andReturn("foo");
-    expect(properties.getBoolean("external.kafka.statsd.tag.enabled", true)).andReturn(false);
+    expect(properties.getInt(StatsDReporterConfig.CONFIG_POLLING_INTERVAL_SECS, StatsDReporterConfig.DEFAULT_POLLING_PERIOD_IN_SECONDS)).andReturn(11);
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_HOST, StatsDReporterConfig.DEFAULT_STATSD_HOST)).andReturn("127.0.0.1");
+    expect(properties.getInt(StatsDReporterConfig.CONFIG_STATSD_PORT, StatsDReporterConfig.DEFAULT_STATSD_PORT)).andReturn(1234);
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_METRICS_PREFIX, StatsDReporterConfig.DEFAULT_STATSD_PREFIX)).andReturn("foo");
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_EXCLUDE_REGEX,
+      StatsDReporterConfig.DEFAULT_STATSD_EXCLUDE_REGEX)).andReturn("foo");
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_INCLUDE_REGEX,
+      StatsDReporterConfig.DEFAULT_STATSD_INCLUDE_REGEX)).andReturn("bar");
+    expect(properties.getBoolean(StatsDReporterConfig.CONFIG_STATSD_TAG_ENABLED, StatsDReporterConfig.DEFAULT_STATSD_TAG_ENABLED)).andReturn(false);
   }
 
   @Test

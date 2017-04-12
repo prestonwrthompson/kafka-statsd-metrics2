@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.airbnb.metrics.StatsDReporterConfig;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.junit.Before;
 import org.junit.Test;
@@ -17,15 +18,15 @@ public class StatsdMetricsReporterTest {
   @Before
   public void init() {
     configs = new HashMap<String, String>();
-    configs.put(StatsdMetricsReporter.STATSD_HOST, "127.0.0.1");
-    configs.put(StatsdMetricsReporter.STATSD_PORT, "1234");
-    configs.put(StatsdMetricsReporter.STATSD_METRICS_PREFIX, "foo");
-    configs.put(StatsdMetricsReporter.STATSD_REPORTER_ENABLED, "false");
+    configs.put(StatsDReporterConfig.CONFIG_STATSD_HOST, "127.0.0.1");
+    configs.put(StatsDReporterConfig.CONFIG_STATSD_PORT, "1234");
+    configs.put(StatsDReporterConfig.CONFIG_STATSD_METRICS_PREFIX, "foo");
+    configs.put(StatsDReporterConfig.CONFIG_STATSD_REPORTER_ENABLED, "false");
   }
 
   @Test
   public void init_should_start_reporter_when_enabled() {
-    configs.put(StatsdMetricsReporter.STATSD_REPORTER_ENABLED, "true");
+    configs.put(StatsDReporterConfig.CONFIG_STATSD_REPORTER_ENABLED, "true");
     StatsdMetricsReporter reporter = new StatsdMetricsReporter();
     assertFalse("reporter should not be running", reporter.isRunning());
     reporter.configure(configs);
@@ -35,7 +36,7 @@ public class StatsdMetricsReporterTest {
 
   @Test
   public void init_should_not_start_reporter_when_disabled() {
-    configs.put(StatsdMetricsReporter.STATSD_REPORTER_ENABLED, "false");
+    configs.put(StatsDReporterConfig.CONFIG_STATSD_REPORTER_ENABLED, "false");
     StatsdMetricsReporter reporter = new StatsdMetricsReporter();
     assertFalse("reporter should not be running", reporter.isRunning());
     reporter.configure(configs);

@@ -38,6 +38,7 @@ import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.stats.Snapshot;
+import kafka.utils.VerifiableProperties;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -76,10 +77,11 @@ public class StatsDReporterTest {
     MockitoAnnotations.initMocks(this);
     when(clock.tick()).thenReturn(1234L);
     when(clock.time()).thenReturn(5678L);
+    StatsDReporterConfig config = new StatsDReporterConfig(new VerifiableProperties());
     registry = new TestMetricsRegistry();
     reporter = new StatsDReporter(registry,
         statsD,
-        EnumSet.allOf(Dimension.class)
+        config
     );
   }
 

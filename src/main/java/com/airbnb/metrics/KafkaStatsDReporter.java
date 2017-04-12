@@ -15,23 +15,16 @@ public class KafkaStatsDReporter implements Runnable {
 
   private final StatsDClient statsDClient;
   private final StatsDMetricsRegistry registry;
-  private boolean tagEnabled;
+  private StatsDReporterConfig statsDReporterConfig;
 
-  public KafkaStatsDReporter(
-    StatsDClient statsDClient,
-    StatsDMetricsRegistry registry,
-    boolean tagEnabled
-  ) {
+  public KafkaStatsDReporter(StatsDClient statsDClient, StatsDMetricsRegistry registry, StatsDReporterConfig config) {
     this.statsDClient = statsDClient;
     this.registry = registry;
     this.executor = new ScheduledThreadPoolExecutor(1);
-    this.tagEnabled = tagEnabled;
+    this.statsDReporterConfig = config;
   }
 
-  public void start(
-    long period,
-    TimeUnit unit
-  ) {
+  public void start(long period, TimeUnit unit) {
     executor.scheduleWithFixedDelay(this, period, period, unit);
   }
 
@@ -45,24 +38,25 @@ public class KafkaStatsDReporter implements Runnable {
     }
   }
 
-  private void sendAMetric(
-    String metricName
-  ) {
-    Metric metric= registry.getMetric(metricName);
+  private void sendAMetric(String metricName) {
+    Metric metric = registry.getMetric(metricName);
     String tag = registry.getTag(metricName);
 
-    final Object value = metric.value();
-    Double val = new Double(value.toString());
+    if (metric != null && statsDReporterConfig.getMetricPredicate().matches(metricName, metric)) {
+      final Object value = metric.value();
+      Double val = new Double(value.toString());
 
-    if (val == Double.NEGATIVE_INFINITY || val == Double.POSITIVE_INFINITY) {
-      val = 0D;
+      if (val == Double.NEGATIVE_INFINITY || val == Double.POSITIVE_INFINITY) {
+        val = 0D;
+      }
+
+      if (statsDReporterConfig.isTagEnabled() && tag != null) {
+        statsDClient.gauge(metricName, val, tag);
+      } else {
+        statsDClient.gauge(metricName, val);
+      }
     }
 
-    if (tagEnabled && tag != null) {
-      statsDClient.gauge(metricName, val, tag);
-    } else {
-      statsDClient.gauge(metricName, val);
-    }
   }
 
   @Override

@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -40,39 +39,20 @@ public class StatsDReporter extends AbstractPollingReporter implements MetricPro
 
   private final StatsDClient statsd;
   private final Clock clock;
-  private final EnumSet<Dimension> dimensions;
-  private MetricPredicate metricPredicate;
-  private boolean isTagEnabled;
-
+  private final StatsDReporterConfig statsDReporterConfig;
   private Parser parser;
 
-  public StatsDReporter(MetricsRegistry metricsRegistry,
-                        StatsDClient statsd,
-                        EnumSet<Dimension> metricDimensions) {
-    this(metricsRegistry, statsd, REPORTER_NAME, MetricPredicate.ALL, metricDimensions, true);
+  public StatsDReporter(MetricsRegistry metricsRegistry, StatsDClient statsd, StatsDReporterConfig statsDReporterConfig) {
+    this(metricsRegistry, statsd, statsDReporterConfig, REPORTER_NAME);
   }
 
-  public StatsDReporter(MetricsRegistry metricsRegistry,
-                        StatsDClient statsd,
-                        MetricPredicate metricPredicate,
-                        EnumSet<Dimension> metricDimensions,
-                        boolean isTagEnabled) {
-    this(metricsRegistry, statsd, REPORTER_NAME, metricPredicate, metricDimensions, isTagEnabled);
-  }
-
-  public StatsDReporter(MetricsRegistry metricsRegistry,
-                        StatsDClient statsd,
-                        String reporterName,
-                        MetricPredicate metricPredicate,
-                        EnumSet<Dimension> metricDimensions,
-                        boolean isTagEnabled) {
+  public StatsDReporter(MetricsRegistry metricsRegistry, StatsDClient statsd, StatsDReporterConfig statsDReporterConfig,
+                        String reporterName) {
     super(metricsRegistry, reporterName);
     this.statsd = statsd;               //exception in statsd is handled by default NO_OP_HANDLER (do nothing)
+    this.statsDReporterConfig = statsDReporterConfig;
     this.clock = Clock.defaultClock();
     this.parser = null;          //postpone set it because kafka doesn't start reporting any metrics.
-    this.dimensions = metricDimensions;
-    this.metricPredicate = metricPredicate;
-    this.isTagEnabled = isTagEnabled;
   }
 
   @Override
@@ -89,7 +69,7 @@ public class StatsDReporter extends AbstractPollingReporter implements MetricPro
   }
 
   private void createParser(MetricsRegistry metricsRegistry) {
-    if (isTagEnabled) {
+    if (statsDReporterConfig.isTagEnabled()) {
       final boolean isMetricsTagged = isTagged(metricsRegistry.allMetrics());
       if (isMetricsTagged) {
         log.info("Kafka metrics are tagged");
@@ -125,7 +105,7 @@ public class StatsDReporter extends AbstractPollingReporter implements MetricPro
         metricName.getMBeanName(), metricName.getGroup(), metricName.getName(),
         metricName.getScope(), metricName.getType());
 
-    if (metricPredicate.matches(metricName, metric) && metric != null) {
+    if (statsDReporterConfig.getMetricPredicate().matches(metricName, metric) && metric != null) {
       try {
         parser.parse(metricName);
         metric.processWith(this, metricName, epoch);
@@ -200,7 +180,7 @@ public class StatsDReporter extends AbstractPollingReporter implements MetricPro
   }
 
   private void sendDouble(Dimension dim, double value) {
-    if (dimensions.contains(dim)) {
+    if (statsDReporterConfig.getMetricDimensions().contains(dim)) {
       statsd.gauge(parser.getName() + "." + dim.getDisplayName(), value, parser.getTags());
     }
   }

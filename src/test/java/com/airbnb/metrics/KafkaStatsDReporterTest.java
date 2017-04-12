@@ -2,6 +2,7 @@ package com.airbnb.metrics;
 
 import com.timgroup.statsd.StatsDClient;
 import com.yammer.metrics.core.Clock;
+import kafka.utils.VerifiableProperties;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.junit.Before;
@@ -23,11 +24,12 @@ public class KafkaStatsDReporterTest {
   @Before
   public void init() throws Exception {
     MockitoAnnotations.initMocks(this);
+    StatsDReporterConfig config = new StatsDReporterConfig(new VerifiableProperties());
     registry = new StatsDMetricsRegistry();
     reporter = new KafkaStatsDReporter(
         statsD,
         registry,
-        true
+        config
     );
   }
 
