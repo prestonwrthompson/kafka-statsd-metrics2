@@ -17,7 +17,7 @@
 package com.airbnb.metrics;
 
 
-import java.util.EnumSet;
+import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +38,7 @@ import com.yammer.metrics.core.Summarizable;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import com.yammer.metrics.stats.Snapshot;
+import kafka.utils.VerifiableProperties;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -47,6 +48,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
 
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -61,9 +64,10 @@ public class StatsDReporterTest {
   @Mock
   private Clock clock;
   @Mock
-  private StatsDClient statsD;
+  private StatsDClient statsDClient;
   private AbstractPollingReporter reporter;
   private TestMetricsRegistry registry;
+  private VerifiableProperties properties;
 
   protected static class TestMetricsRegistry extends MetricsRegistry {
     public <T extends Metric> T add(MetricName name, T metric) {
@@ -73,14 +77,25 @@ public class StatsDReporterTest {
 
   @Before
   public void init() throws Exception {
+    properties = createMock(VerifiableProperties.class);
+    expect(properties.props()).andReturn(new Properties());
+    expect(properties.getInt(StatsDReporterConfig.CONFIG_POLLING_INTERVAL_SECS, StatsDReporterConfig.DEFAULT_POLLING_PERIOD_IN_SECONDS)).andReturn(11);
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_HOST, StatsDReporterConfig.DEFAULT_STATSD_HOST)).andReturn("127.0.0.1");
+    expect(properties.getInt(StatsDReporterConfig.CONFIG_STATSD_PORT, StatsDReporterConfig.DEFAULT_STATSD_PORT)).andReturn(1234);
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_METRICS_PREFIX, StatsDReporterConfig.DEFAULT_STATSD_PREFIX)).andReturn("foo");
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_EXCLUDE_REGEX,
+      StatsDReporterConfig.DEFAULT_STATSD_EXCLUDE_REGEX)).andReturn("foo");
+    expect(properties.getString(StatsDReporterConfig.CONFIG_STATSD_INCLUDE_REGEX,
+      StatsDReporterConfig.DEFAULT_STATSD_INCLUDE_REGEX)).andReturn("bar");
+    expect(properties.getBoolean(StatsDReporterConfig.CONFIG_STATSD_TAG_ENABLED, StatsDReporterConfig.DEFAULT_STATSD_TAG_ENABLED)).andReturn(false);
+    expect(properties.getBoolean(StatsDReporterConfig.CONFIG_STATSD_REPORTER_ENABLED, false)).andReturn(true);
+
     MockitoAnnotations.initMocks(this);
     when(clock.tick()).thenReturn(1234L);
     when(clock.time()).thenReturn(5678L);
+    StatsDReporterConfig config = new StatsDReporterConfig(new VerifiableProperties());
     registry = new TestMetricsRegistry();
-    reporter = new StatsDReporter(registry,
-        statsD,
-        EnumSet.allOf(Dimension.class)
-    );
+    reporter = new StatsDReporter(registry, statsDClient, config, "test-reporter");
   }
 
   @Test
@@ -107,20 +122,20 @@ public class StatsDReporterTest {
   }
 
   private void verifySend(String metricNameSuffix, double metricValue) {
-    verify(statsD).gauge(METRIC_BASE_NAME + "." + metricNameSuffix,
+    verify(statsDClient).gauge(METRIC_BASE_NAME + "." + metricNameSuffix,
         metricValue);
   }
 
   private void verifySend(double metricValue) {
-    verify(statsD).gauge(METRIC_BASE_NAME, metricValue);
+    verify(statsDClient).gauge(METRIC_BASE_NAME, metricValue);
   }
 
   private void verifySend(long metricValue) {
-    verify(statsD).gauge(METRIC_BASE_NAME, metricValue);
+    verify(statsDClient).gauge(METRIC_BASE_NAME, metricValue);
   }
 
   private void verifySend(String metricNameSuffix, String metricValue) {
-    verify(statsD).gauge(METRIC_BASE_NAME + "." + metricNameSuffix,
+    verify(statsDClient).gauge(METRIC_BASE_NAME + "." + metricNameSuffix,
         Double.valueOf(metricValue));
   }
 
@@ -239,7 +254,7 @@ public class StatsDReporterTest {
             return createGauge(value);
           }
         });
-    verify(statsD, never()).gauge(Matchers.anyString(), Matchers.anyDouble());
+    verify(statsDClient, never()).gauge(Matchers.anyString(), Matchers.anyDouble());
   }
 
   static Counter createCounter(long count) throws Exception {
