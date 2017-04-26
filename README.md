@@ -8,13 +8,45 @@ Send Kafka Metrics to StatsD.
 **Let us know!** If you fork this, or if you use it, or if it helps in anyway, we'd love to hear from you! opensource@airbnb.com
 
 ## What is it about?
-Kafka uses [Yammer Metrics](http://metrics.codahale.com/getting-started/) (now part of the [Dropwizard project](http://metrics.codahale.com/about/)) for [metrics reporting](https://kafka.apache.org/documentation.html#monitoring)
-in both the server and the client.
-This can be configured to report stats using pluggable stats reporters to hook up to your monitoring system.
+Kafka reports metrics about the state of its brokers, clients, Streams, and Connect. These various components can be configured to report stats using pluggable stats reporters that can be hooked up to your monitoring systems.
 
 This project provides a simple integration between Kafka and a StatsD reporter for Metrics.
 
 Metrics can be filtered based on the metric name and the metric dimensions (min, max, percentiles, etc).
+
+### A Brief History of Metrics Reporting in Kafka
+
+Kafka has a strange and poorly documented history of its metrics reporting.
+At first, Kafka started off using [Yammer Metrics](http://metrics.codahale.com/getting-started/) (now part of the [Dropwizard project](http://metrics.codahale.com/about/)) for [metrics reporting](https://kafka.apache.org/documentation.html#monitoring) for the broker and client.
+There were some compatibility problems with the Yammer Metrics library, so the minds behind Kafka decided to create their own metrics reporting library for Kafka that did essentially the same thing as Yammer Metrics.
+You can read the initial proposal for rewriting the metrics library [here](http://markmail.org/message/5t2xkr57vivjd65u). They wrote the new clients for Kafka 0.9+ to use only this new native metrics reporting and not Yammer Metrics.
+However, they did not update all the existing broker metrics to use this new native reporting. Instead, they added new broker metrics using the new native reporting and left the existing broker metrics to use Yammer Metrics.
+To make matters worse, they continue to add new broker metrics that use the Yammer Metrics library. Yikes! There is a [JIRA issue](https://issues.apache.org/jira/browse/KAFKA-1930) to move all broker metrics from Yammer Metrics to the native metrics reporting.
+
+Some other relevant JIRA issues are [here](https://issues.apache.org/jira/browse/KAFKA-960), [here](https://issues.apache.org/jira/browse/KAFKA-826), and [here](https://issues.apache.org/jira/browse/KAFKA-542).
+
+### Why is this important?
+
+[Kafka's documentation](http://kafka.apache.org/documentation/#configuration) lists configuration options for the various components.
+In these options, you can find the pluggable stats reporter option of `metric.reporters` available for the broker, new consumer, producer, Connect, and Streams.
+This option accepts a comma-separated list of class names that implement `org.apache.kafka.common.metrics.MetricsReporter`, each of which will be instantiated on startup and when metrics are created or removed the reporters will be notified.
+The problem is that these metric reporters are only ever notified of metrics that use the new native reporting.
+
+To access metrics that use Yammer Metrics (which includes a majority of the broker metrics), there is another configuration option `kafka.metrics.reporters` that is no longer listed in the documentation! A [JIRA issue](https://issues.apache.org/jira/browse/KAFKA-5066) was recently added to re-expose this configuration option.
+This option accepts a comma-separated list of class names that implement `kafka.metrics.KafkaMetricsReporter`, each of which will simply be started on startup and stopped on shutdown.
+
+This project has implemented both types of reporters. `com.airbnb.kafka.kafka08.StatsdMetricsReporter` implements `kafka.metrics.KafkaMetricsReporter` and can be used in the `kafka.metrics.reporters` configuration option to get access to metrics reported via the Yammer Metrics.
+`com.airbnb.kafka.kafka09.StatsdMetricsReporter` implements `org.apache.kafka.common.metrics.MetricsReporter` and can be used in the `metric.reporters` configuration option to get access the metrics reported via the native metric reporting.
+
+The following table is a guide to which you should use:
+
+| Component | 0.8        | 0.9     | 0.10    |
+|-----------|------------|---------|---------|
+| broker    | kafka08    | both    | both    |
+| consumer  | no metrics | kafka09 | kafka09 |
+| producer  | no metrics | kafka09 | kafka09 |
+| Connect   | N/A        | N/A     | kafka09 |
+| Streams   | N/A        | N/A     | kafka09 |
 
 ## Supported Kafka versions
 
@@ -24,6 +56,13 @@ Metrics can be filtered based on the metric name and the metric dimensions (min,
 
 
 ## Releases
+
+### 0.5.3
+
+- Adds support for `exclude_regex` configuration option in kafka09
+- Adds support for `include_regex` configuration option for both kafka08 and kafka09
+- When tags are disabled (i.e. `external.kafka.statsd.tag.enabled` is set to false) for kafka09, the metric name sent to statsd will now include the tag keys and values separated by periods. For example, a metric with group `group`, name `name`, and tags `key1:value1` and `key2:value2` will be sent to statsd as `kafka.group.key1.value1.key2.value2.name`
+- Refactors configuration settings. The only configuration options not followed by the kafka09 reporter at this point are the dimension configurations.
 
 ### 0.5.2
 - Convert INFINITY values to 0.
@@ -58,7 +97,7 @@ Metrics can be filtered based on the metric name and the metric dimensions (min,
 ## How to use metrics in Kafka 0.9 / 0.8?
 ### New metrics in kafka 0.9
 
-1. Add `metric.reporters` in producer.properties or consumer.properties 
+1. Add `metric.reporters` in producer.properties or consumer.properties
 ```bash
     # declare the reporter if new producer/consumer is used
     metric.reporters=com.airbnb.kafka.kafka09.StatsdMetricsReporter
@@ -73,7 +112,7 @@ Producer:
 
 ### Old metrics in kafka 0.8
 
-1. Add `kafka.metrics.reporters` in producer.properties or consumer.properties 
+1. Add `kafka.metrics.reporters` in producer.properties or consumer.properties
 ```bash
     # declare the reporter if old producer/consumer is used
     kafka.metrics.reporters=com.airbnb.kafka.kafka08.StatsdMetricsReporter
@@ -123,11 +162,12 @@ Producer:
     #
     # external.kafka.statsd.metrics.exclude_regex=
 
-    #
+
     # Each metric provides multiple dimensions: min, max, meanRate, etc
     # This might be too much data.
     # It is possible to disable some metric dimensions with the following properties:
     # By default all dimenstions are enabled.
+    # Does not apply to kafka09
     #
     # external.kafka.statsd.dimension.enabled.count=true
     # external.kafka.statsd.dimension.enabled.meanRate=true

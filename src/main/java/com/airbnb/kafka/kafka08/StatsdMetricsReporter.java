@@ -16,21 +16,17 @@
 
 package com.airbnb.kafka.kafka08;
 
-import com.airbnb.metrics.Dimension;
-import com.airbnb.metrics.ExcludeMetricPredicate;
 import com.airbnb.metrics.StatsDReporter;
 import com.airbnb.metrics.StatsDReporterConfig;
 import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.MetricPredicate;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import kafka.metrics.KafkaMetricsReporter;
 import kafka.utils.VerifiableProperties;
 import org.slf4j.LoggerFactory;
 
-import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 

@@ -53,7 +53,7 @@ public class StatsdMetricsReporterTest {
 
   @Test
   public void init_should_start_reporter_when_enabled() {
-    expect(properties.getBoolean("external.kafka.statsd.reporter.enabled", false)).andReturn(true);
+    expect(properties.getBoolean(StatsDReporterConfig.CONFIG_STATSD_REPORTER_ENABLED, false)).andReturn(true);
 
     replay(properties);
     StatsdMetricsReporter reporter = new StatsdMetricsReporter();
@@ -66,7 +66,7 @@ public class StatsdMetricsReporterTest {
 
   @Test
   public void init_should_not_start_reporter_when_disabled() {
-    expect(properties.getBoolean("external.kafka.statsd.reporter.enabled", false)).andReturn(false);
+    expect(properties.getBoolean(StatsDReporterConfig.CONFIG_STATSD_REPORTER_ENABLED, false)).andReturn(false);
 
     replay(properties);
     StatsdMetricsReporter reporter = new StatsdMetricsReporter();

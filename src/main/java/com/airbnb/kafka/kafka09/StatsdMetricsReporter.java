@@ -26,7 +26,6 @@ import com.timgroup.statsd.NonBlockingStatsDClient;
 import com.timgroup.statsd.StatsDClient;
 import com.timgroup.statsd.StatsDClientException;
 import kafka.utils.VerifiableProperties;
-import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.metrics.KafkaMetric;
 import org.apache.kafka.common.metrics.MetricsReporter;
 import org.slf4j.LoggerFactory;
@@ -34,13 +33,10 @@ import org.slf4j.LoggerFactory;
 public class StatsdMetricsReporter implements MetricsReporter {
   private static final org.slf4j.Logger log = LoggerFactory.getLogger(StatsDReporter.class);
 
-  public static final String REPORTER_NAME = "kafka-statsd-metrics-0.5";
-
-  private static final String METRIC_PREFIX = "kafka.";
+  private static final String REPORTER_NAME = "kafka-statsd-metrics-0.5";
 
   private final AtomicBoolean running = new AtomicBoolean(false);
   private StatsDClient statsd;
-  private Map<String, KafkaMetric> kafkaMetrics;
   private StatsDMetricsRegistry registry;
   private KafkaStatsDReporter underlying = null;
   private StatsDReporterConfig statsDReporterConfig;
@@ -52,7 +48,6 @@ public class StatsdMetricsReporter implements MetricsReporter {
   @Override
   public void init(List<KafkaMetric> metrics) {
     registry = new StatsDMetricsRegistry();
-    kafkaMetrics = new HashMap<String, KafkaMetric>();
 
     if (statsDReporterConfig.isEnabled()) {
       startReporter();
@@ -65,35 +60,14 @@ public class StatsdMetricsReporter implements MetricsReporter {
     }
   }
 
-  private String getMetricName(final KafkaMetric metric) {
-    MetricName metricName = metric.metricName();
-
-    return METRIC_PREFIX + metricName.group() + "." + metricName.name();
-  }
-
   @Override
   public void metricChange(final KafkaMetric metric) {
-    String name = getMetricName(metric);
-
-    StringBuilder strBuilder = new StringBuilder();
-
-    for (String key : metric.metricName().tags().keySet()) {
-      strBuilder.append(key).append(":").append(metric.metricName().tags().get(key)).append(",");
-    }
-
-    if (strBuilder.length() > 0) {
-      strBuilder.deleteCharAt(strBuilder.length() - 1);
-    }
-
-    registry.register(name, metric, strBuilder.toString());
-    log.debug("metrics name: {}", name);
+    registry.register(metric);
   }
 
   @Override
   public void metricRemoval(KafkaMetric metric) {
-    String name = getMetricName(metric);
-
-    registry.unregister(name);
+    registry.unregister(metric);
   }
 
   @Override
@@ -111,7 +85,7 @@ public class StatsdMetricsReporter implements MetricsReporter {
     statsDReporterConfig = new StatsDReporterConfig(verifiableProperties);
   }
 
-  public void startReporter() {
+  private void startReporter() {
     if (statsDReporterConfig.getPollingPeriodInSeconds() <= 0) {
       throw new IllegalArgumentException("Polling period must be greater than zero");
     }
@@ -136,9 +110,9 @@ public class StatsdMetricsReporter implements MetricsReporter {
   private StatsDClient createStatsd() {
     try {
       return new NonBlockingStatsDClient(statsDReporterConfig.getPrefix(), statsDReporterConfig.getHost(), statsDReporterConfig.getPort());
-    } catch (StatsDClientException ex) {
+    } catch (StatsDClientException e) {
       log.error("KafkaStatsDReporter cannot be started");
-      throw ex;
+      throw e;
     }
   }
 
