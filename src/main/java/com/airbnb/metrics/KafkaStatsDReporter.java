@@ -1,6 +1,5 @@
 package com.airbnb.metrics;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -44,17 +43,15 @@ public class KafkaStatsDReporter implements Runnable {
   }
 
   private void sendAllKafkaMetrics() {
-    final Map<MetricName, Metric> allMetrics = new HashMap<MetricName, Metric>(registry.getMetrics());
-    for (Map.Entry<MetricName, Metric> entry : allMetrics.entrySet()) {
-      sendAMetric(entry.getKey(), entry.getValue());
+    for (Metric metric : registry.getMetrics()) {
+      sendAMetric(metric);
     }
   }
 
-  private void sendAMetric(MetricName metricName, Metric metric) {
-    String gaugeMetricName = getGaugeMetricName(metricName);
-//    String tagSuffix = getTagSuffix(metricName);
+  private void sendAMetric(Metric metric) {
+    String gaugeMetricName = getGaugeMetricName(metric.metricName());
 
-    if (metric != null && statsDReporterConfig.getMetricPredicate().matches(gaugeMetricName, metric)) {
+    if (statsDReporterConfig.getMetricPredicate().matches(gaugeMetricName, metric)) {
       final Object value = metric.value();
       Double val = new Double(value.toString());
 
@@ -63,7 +60,7 @@ public class KafkaStatsDReporter implements Runnable {
       }
 
       if (statsDReporterConfig.isTagEnabled()) {
-        statsDClient.gauge(gaugeMetricName, val, getTagSuffix(metricName));
+        statsDClient.gauge(gaugeMetricName, val, getTagSuffix(metric.metricName()));
       } else {
         statsDClient.gauge(gaugeMetricName, val);
       }
@@ -75,7 +72,7 @@ public class KafkaStatsDReporter implements Runnable {
 
     // if datadog tags are not enabled, include the tag keys and values in the gauge metric name
     if (!statsDReporterConfig.isTagEnabled()) {
-      for(Map.Entry<String, String>  entry : metricName.tags().entrySet()) {
+      for(Map.Entry<String, String> entry : metricName.tags().entrySet()) {
         stringBuilder.append(".").append(entry.getKey()).append(".").append(entry.getValue());
       }
     }

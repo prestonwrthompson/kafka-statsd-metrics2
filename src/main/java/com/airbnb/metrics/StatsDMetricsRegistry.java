@@ -20,7 +20,7 @@ public class StatsDMetricsRegistry {
     metrics.remove(metric.metricName());
   }
 
-  public Map<MetricName, Metric> getMetrics() {
-    return metrics;
+  public Collection<Metric> getMetrics() {
+    return metrics.values();
   }
 }
